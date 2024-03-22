@@ -49,7 +49,11 @@ class Server:
         try:
             # TODO: Modify the receive to avoid short-reads
             msg_header = recv_exactly(self.client_socket, HEADER_LEN)
+            if msg_header == None:
+                return
             names = recv_exactly(self.client_socket, msg_header[NAME_LEN_BYTE_POSITION])
+            if names == None:
+                return
             bet = Bet.from_bytes(msg_header + names)
             store_bets([bet])
             logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
@@ -58,8 +62,8 @@ class Server:
 
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
-        #finally:
-        #    client_sock.close()
+        finally:
+            self.client_socket.close()
 
     def __accept_new_connection(self):
         """
