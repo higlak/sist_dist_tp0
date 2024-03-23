@@ -123,6 +123,14 @@ func (batch *BetBatch) addBet(bet Bet) {
 	batch.bets = append(batch.bets, bet)
 }
 
+func (batch *BetBatch) Len() int{
+	return len(batch.bets)
+}
+
+func (batch *BetBatch) IsEmpty() bool{
+	return batch.Len() == 0
+}
+
 type BetBatchGenerator struct{
 	file *os.File
 	reader *bufio.Reader
@@ -144,9 +152,11 @@ func BetBatchGeneratorFrom(path string, batch_size byte) *BetBatchGenerator{
 	}
 }
 
+//Reads from the asociated file until a valid BetBatch of size batchSize can be 
+//returned or EOF is reached 
 func (gen *BetBatchGenerator) NextBatch() (*BetBatch, error){
 	var batch BetBatch
-	for i := 0; i < int(gen.batchSize); i++ {
+	for batch.Len() < int(gen.batchSize){
 		bet, err := gen.NextBet()
 		if err != nil{
 			if err != io.EOF{

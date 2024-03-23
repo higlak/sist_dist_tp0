@@ -55,62 +55,45 @@ func (c *Client) createClientSocket() error {
 
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
-	
-	gen := BetBatchGeneratorFrom("/data/agency-1.csv", 10)
-	batch, err := gen.NextBatch()
-	if err != nil{
-		log.Errorf("problema %v",
-				err,
-			)
-		return
-	}
-	log.Infof("bets: %v",
-		batch)
-	return
-	const ANSWEAR_BYTES = 1
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
-	
+
+	bets_file := "/data/agency-" + c.config.ID + ".csv"
+	gen := BetBatchGeneratorFrom(bets_file, 10)
+	c.createClientSocket()
+	defer c.conn.Close()
+
 	loop:
 	// Send messages if the loopLapse threshold has not been surpassed
 	for timeout := time.After(c.config.LoopLapse); ; {
-		// Create the connection the server in every loop iteration. Send an
-		c.createClientSocket()
 
-		// TODO: Modify the send to avoid short-write
-		bet := BetFromEnv()
-		if bet == nil{
-			log.Errorf("action: creando apuesta | result: fail | variables de entorno no inicializadas")
-			c.conn.Close()
+		batch, err := gen.NextBatch()
+		if err != nil{
+			log.Errorf("probleaction: creando apuesta | result: fail  %v", err)
 			return
 		}
-		err := send_all(c.conn, bet.ToBytes())
+		
+		if batch.IsEmpty(){
+			log.Infof("action: enviado todas las apuestas | result: success |client_id: %v | error: %v",
+			c.config.ID,
+			err,
+			)
+			break
+		}
+
+		err = send_all(c.conn, batch.ToBytes())
     	if err != nil {
         	log.Errorf("action: enviando apuesta | result: fail | client_id: %v | error: %v",
                 c.config.ID,
 				err,
 			)
-			c.conn.Close()
 			return 
-    	}
-		//c.conn.Write(bet.BetToBytes())
+    	}	
+		
+		ack_chan := make(chan bool)
+		go recv_bet_batch_ack(c.conn, c.config.ID,ack_chan)
 
-
-		//msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		_,err = recv_exactly(c.conn, ANSWEAR_BYTES)
-		c.conn.Close()
-
-		if err != nil {
-			log.Errorf("action: apuesta_enviada | result: fail | client_id: %v | error: %v",
-                c.config.ID,
-				err,
-			)
-			return
-		}
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-            bet.dni,
-            bet.lotteryNumber,
-        )
+		loop_period_chan := time.After(c.config.LoopPeriod)
 
 		select {
 		case <-timeout:
@@ -120,10 +103,31 @@ func (c *Client) StartClientLoop() {
 			break loop
 		case <-sigs:
 			break loop
-		case <- time.After(c.config.LoopPeriod):
+		case received:= <- ack_chan:
+			if !received{
+				log.Infof("pase por aca:")
+				break loop
+			}
+			<- loop_period_chan
 		}
 	}
-
+	
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
-	
+
+//Attempts to receive a byte from conn, if successfull sends true through the channel.
+//On failure sends false
+func recv_bet_batch_ack(conn net.Conn, cli_id string, channel chan<- bool){
+	const ANSWEAR_BYTES = 1
+	_,err := recv_exactly(conn, ANSWEAR_BYTES)
+
+	if err != nil {
+		log.Errorf("action: batch_enviada | result: fail | client_id: %v | error: %v",
+			cli_id,
+			err,
+		)
+		channel <- false
+	}else{
+		channel <- true
+	}
+}
