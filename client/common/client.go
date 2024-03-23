@@ -62,6 +62,7 @@ func (c *Client) StartClientLoop() {
 	gen := BetBatchGeneratorFrom(bets_file, 10)
 	c.createClientSocket()
 	defer c.conn.Close()
+	defer gen.Close()
 
 	loop:
 	// Send messages if the loopLapse threshold has not been surpassed
@@ -73,7 +74,17 @@ func (c *Client) StartClientLoop() {
 			return
 		}
 		
+		err = send_all(c.conn, batch.ToBytes())
+		if err != nil {
+			log.Errorf("action: enviando apuesta | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return 
+		}
+
 		if batch.IsEmpty(){
+
 			log.Infof("action: enviado todas las apuestas | result: success |client_id: %v | error: %v",
 			c.config.ID,
 			err,
@@ -81,15 +92,6 @@ func (c *Client) StartClientLoop() {
 			break
 		}
 
-		err = send_all(c.conn, batch.ToBytes())
-    	if err != nil {
-        	log.Errorf("action: enviando apuesta | result: fail | client_id: %v | error: %v",
-                c.config.ID,
-				err,
-			)
-			return 
-    	}	
-		
 		ack_chan := make(chan bool)
 		go recv_bet_batch_ack(c.conn, c.config.ID,ack_chan)
 

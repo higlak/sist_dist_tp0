@@ -51,6 +51,8 @@ class Server:
             while True:
                 bet_batch = self.recv_bet_batch()
                 if bet_batch == None:
+                    return
+                if len(bet_batch) == 0:
                     break
                 store_bets(bet_batch)
                 ammount_of_bets += len(bet_batch)
