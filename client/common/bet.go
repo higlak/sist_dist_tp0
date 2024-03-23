@@ -137,7 +137,7 @@ type BetBatchGenerator struct{
 	batchSize byte
 }
 
-func BetBatchGeneratorFrom(path string, batch_size byte) *BetBatchGenerator{
+func BetBatchGeneratorFrom(path string, max_batch_size byte) *BetBatchGenerator{
 	file, err := os.Open(path)
     if err != nil {
         fmt.Println("Error al abrir el archivo:", err)
@@ -148,7 +148,7 @@ func BetBatchGeneratorFrom(path string, batch_size byte) *BetBatchGenerator{
 	return &BetBatchGenerator{
 		file: file,
 		reader: bufio.NewReader(file),
-		batchSize: batch_size,
+		batchSize: max_batch_size,
 	}
 }
 

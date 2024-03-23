@@ -16,10 +16,11 @@ import (
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
-	ID            string
-	ServerAddress string
-	LoopLapse     time.Duration
-	LoopPeriod    time.Duration
+	ID            	string
+	ServerAddress 	string
+	LoopLapse     	time.Duration
+	LoopPeriod    	time.Duration
+	MaxBatchSize	byte
 }
 
 // Client Entity that encapsulates how
@@ -59,7 +60,7 @@ func (c *Client) StartClientLoop() {
 	signal.Notify(sigs, syscall.SIGTERM)
 
 	bets_file := "/data/agency-" + c.config.ID + ".csv"
-	gen := BetBatchGeneratorFrom(bets_file, 10)
+	gen := BetBatchGeneratorFrom(bets_file, c.config.MaxBatchSize)
 	c.createClientSocket()
 	defer c.conn.Close()
 	defer gen.Close()
