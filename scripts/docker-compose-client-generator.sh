@@ -20,7 +20,8 @@ services:
     networks:
       - testing_net
     volumes:
-      - serverConfig:/config"
+      - serverConfig:/config
+      - dataVolume:/data"
 
 echo "$server_text" > docker-compose-dev.yaml
 
@@ -38,7 +39,8 @@ for ((i = 1; i <= $clientes; i++)); do
     depends_on:
       - server
     volumes:
-      - clientConfig:/config"
+      - clientConfig:/config
+      - dataVolume:/data"
   echo "$client_text" >> docker-compose-dev.yaml
 done
 
@@ -65,6 +67,12 @@ volumes:
     driver_opts:
       type: none
       device: ./client/config
+      o: bind
+  dataVolume:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./.data/dataset
       o: bind"
 
 echo "$volumes_text" >> docker-compose-dev.yaml

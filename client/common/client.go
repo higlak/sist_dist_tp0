@@ -56,6 +56,17 @@ func (c *Client) createClientSocket() error {
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
 	
+	gen := BetBatchGeneratorFrom("/data/agency-1.csv", 10)
+	batch, err := gen.NextBatch()
+	if err != nil{
+		log.Errorf("problema %v",
+				err,
+			)
+		return
+	}
+	log.Infof("bets: %v",
+		batch)
+	return
 	const ANSWEAR_BYTES = 1
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM)
