@@ -7,7 +7,9 @@ import (
 	"os"
     "os/signal"
     "syscall"
-	//"fmt"
+	"encoding/binary"
+	"fmt"
+	"strconv"
 	//"io"
 	
 	log "github.com/sirupsen/logrus"
@@ -115,7 +117,63 @@ func (c *Client) StartClientLoop() {
 		}
 	}
 	
+	c.get_winners()
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+}
+
+
+func (c *Client) get_winners(){
+	id, err := strconv.ParseUint(c.config.ID, 10, 16)
+    if err != nil {
+        fmt.Println("Error al convertir el string:", err)
+        return
+    } 
+
+	id_bytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(id_bytes, uint16(id))
+
+	err = send_all(c.conn, id_bytes)
+	if err != nil {
+		log.Errorf("action: Consulta_ganadores | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
+
+	c.recv_winners()
+}
+
+func (c *Client) recv_winners(){
+	const AMOUNT_OF_WINNERS_BYTES = 4
+	amount_of_winners_bytes,err := recv_exactly(c.conn, AMOUNT_OF_WINNERS_BYTES)
+	if err != nil {
+		log.Errorf("action: Recibiendo ganadores | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+		return
+	}
+	amount_of_winners := int(binary.BigEndian.Uint32(amount_of_winners_bytes))
+	log.Infof("action: consulta_ganadores | result: success | client_id %v | cant_ganadores: %v",
+		c.config.ID,
+		amount_of_winners,
+	)
+	for i:=0; i<amount_of_winners; i++{
+		winner_bytes,err := recv_exactly(c.conn, AMOUNT_OF_WINNERS_BYTES)
+		if err != nil {
+			log.Errorf("action: Recibiendo ganadores | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+			)
+			return
+		}
+		winner := int(binary.BigEndian.Uint32(winner_bytes))
+		log.Infof("action: Recibir ganador | result: success | client_id: %v | winner: %v",
+			c.config.ID,
+			winner,
+		)
+	}
 }
 
 //Attempts to receive a byte from conn, if successfull sends true through the channel.

@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-from common.utils import BET_BATCH_HEADER_LEN, NAME_LEN_BYTE_POSITION, BET_HEADER_LEN, Bet, store_bets, recv_exactly, send_all
+from common.utils import *
 
 STORED_BET_MSG = bytearray([0xff])
 AGENCIES = 5
@@ -30,8 +30,27 @@ class Server:
                 return self.close_sockets()
             self.__handle_client_connection(self.client_sockets[len(self.client_sockets)-1])
 
+        logging.info("action: sorteo | result: success")
+        winners = get_winners()
+        self.send_winners(winners)
         logging.debug("Cerrando socket")
         self.close_sockets()
+
+    def send_winners(self, winners):
+        for socket in self.client_sockets:
+            try:
+                agency = recv_exactly(socket, AGENCY_BYTES)
+                if agency == None:
+                    continue
+                agency = byte_array_to_big_endian_integer(agency)
+                data = integer_to_big_endian_byte_array(len(winners.get(agency, [])), AMOUNT_OF_WINNERS_BYTES)
+                for winner_dni in winners.get(agency, []):
+                    logging.debug(f"action: winner | result: success | agency: {agency} | dni: {winner_dni}")
+                    data += integer_to_big_endian_byte_array(winner_dni, DOCUMENT_BYTES)
+                send_all(socket, data)
+
+            except OSError as e:
+                logging.error(f"action: receive_message | result: fail | error: {e}")
 
     def close_sockets(self):
         self._server_socket.close()
