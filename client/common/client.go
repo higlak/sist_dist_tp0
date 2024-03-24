@@ -110,7 +110,6 @@ func (c *Client) StartClientLoop() {
 			break loop
 		case received:= <- ack_chan:
 			if !received{
-				log.Infof("pase por aca:")
 				break loop
 			}
 			<- loop_period_chan

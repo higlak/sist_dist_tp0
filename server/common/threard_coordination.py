@@ -1,7 +1,7 @@
 import logging
 import signal
-import queue
 from threading import Lock
+from multiprocessing import Queue
 
 from common.utils import Bet, store_bets
 
@@ -14,7 +14,7 @@ class SafeBetWriter():
             store_bets(bets)
 
 class WinnerReceiver():
-    def __init__(self, agency_finished_queue: queue.Queue, winners_queueu: queue.Queue):
+    def __init__(self, agency_finished_queue: Queue, winners_queueu: Queue):
         self.agency_finished_queue = agency_finished_queue
         self.winners_queueu = winners_queueu
 
@@ -32,7 +32,7 @@ class WinnerReceiver():
         self.agency_finished_queue.put(None)
 
 class WinnerSender():
-    def __init__(self, agency_finished_queues: list[queue.Queue], winners_queueus: list[queue.Queue]):
+    def __init__(self, agency_finished_queues: list[Queue], winners_queueus: list[Queue]):
         self.agency_finished_queues = agency_finished_queues
         self.winners_queueus = winners_queueus
         self.agencies = []
@@ -56,8 +56,8 @@ def create_winner_comunicators(n):
     winners_queueus = []
     winner_receivers = []
     for _i in range(n):
-        agency_finished_queue = queue.Queue()
-        winners_queueu = queue.Queue()
+        agency_finished_queue = Queue()
+        winners_queueu = Queue()
         winner_receiver = WinnerReceiver(agency_finished_queue, winners_queueu)
         agency_finished_queues.append(agency_finished_queue)
         winners_queueus.append(winners_queueu)
