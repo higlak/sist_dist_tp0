@@ -56,25 +56,21 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-
+/*	Attempts to send all bets in less than LoopLapse time, sending a batch
+	every LoopPeriod seconds. If all bets are sent it returns true, athorwise it 
+	returns false
+*/ 
+func (c *Client) send_all_bets(sigs chan os.Signal) bool{
+	ack_chan := make(chan bool)
 	bets_file := "/data/agency-" + c.config.ID + ".csv"
 	gen := BetBatchGeneratorFrom(bets_file, c.config.MaxBatchSize)
-	c.createClientSocket()
-	defer c.conn.Close()
 	defer gen.Close()
 
-	loop:
-	// Send messages if the loopLapse threshold has not been surpassed
 	for timeout := time.After(c.config.LoopLapse); ; {
-
 		batch, err := gen.NextBatch()
 		if err != nil{
-			log.Errorf("probleaction: creando apuesta | result: fail  %v", err)
-			return
+			log.Errorf("action: creando apuesta | result: fail  %v", err)
+			return false
 		}
 		
 		err = send_all(c.conn, batch.ToBytes())
@@ -83,11 +79,10 @@ func (c *Client) StartClientLoop() {
 				c.config.ID,
 				err,
 			)
-			return 
+			return false
 		}
 
 		if batch.IsEmpty(){
-
 			log.Infof("action: enviado todas las apuestas | result: success |client_id: %v | error: %v",
 			c.config.ID,
 			err,
@@ -95,7 +90,6 @@ func (c *Client) StartClientLoop() {
 			break
 		}
 
-		ack_chan := make(chan bool)
 		go recv_bet_batch_ack(c.conn, c.config.ID,ack_chan)
 
 		loop_period_chan := time.After(c.config.LoopPeriod)
@@ -105,24 +99,37 @@ func (c *Client) StartClientLoop() {
 			log.Infof("action: timeout_detected | result: success | client_id: %v",
 			c.config.ID,
 			)
-			break loop
+			return false
 		case <-sigs:
-			break loop
+			return false
 		case received:= <- ack_chan:
 			if !received{
-				log.Infof("pase por aca:")
-				break loop
+				return false
 			}
 			<- loop_period_chan
 		}
 	}
+	return true
+}
+
+// StartClientLoop Send messages to the client until some time threshold is met
+func (c *Client) StartClientLoop() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+
+	c.createClientSocket()
+	defer c.conn.Close()
+
+	if !c.send_all_bets(sigs){
+		return
+	}
 	
-	c.get_winners()
+	c.get_winners(sigs)
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
 
 
-func (c *Client) get_winners(){
+func (c *Client) get_winners(sigs chan os.Signal){
 	id, err := strconv.ParseUint(c.config.ID, 10, 16)
     if err != nil {
         fmt.Println("Error al convertir el string:", err)
@@ -141,38 +148,45 @@ func (c *Client) get_winners(){
 		return
 	}
 
-	c.recv_winners()
+	amount_of_winners := c.recv_amount_of_winners(sigs)
+	c.recv_winners(sigs, amount_of_winners)
 }
 
-func (c *Client) recv_winners(){
-	const AMOUNT_OF_WINNERS_BYTES = 4
-	amount_of_winners_bytes,err := recv_exactly(c.conn, AMOUNT_OF_WINNERS_BYTES)
-	if err != nil {
-		log.Errorf("action: Recibiendo ganadores | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
-		return
+// Returns the ammount_of_winners or -1 on failure
+func (c *Client) recv_amount_of_winners(sigs chan os.Signal) int{
+	recv_chan := make(chan int)
+	go recv_positive_int(c.conn, c.config.ID ,recv_chan)
+	select {
+		case <-sigs:
+			return -1
+		case amount_of_winners:= <- recv_chan:
+			if amount_of_winners > 0{
+				log.Infof("action: consulta_ganadores | result: success | client_id %v | cant_ganadores: %v",
+				c.config.ID,
+				amount_of_winners,
+				)
+			}
+			return amount_of_winners
 	}
-	amount_of_winners := int(binary.BigEndian.Uint32(amount_of_winners_bytes))
-	log.Infof("action: consulta_ganadores | result: success | client_id %v | cant_ganadores: %v",
-		c.config.ID,
-		amount_of_winners,
-	)
+}
+
+//Receives all winners dnis and logs them
+func (c *Client) recv_winners(sigs chan os.Signal, amount_of_winners int){
+	recv_chan := make(chan int)
 	for i:=0; i<amount_of_winners; i++{
-		winner_bytes,err := recv_exactly(c.conn, AMOUNT_OF_WINNERS_BYTES)
-		if err != nil {
-			log.Errorf("action: Recibiendo ganadores | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-			)
-			return
+		go recv_positive_int(c.conn, c.config.ID ,recv_chan)
+		select {
+			case <-sigs:
+				return 
+			case winner:= <- recv_chan:
+				if winner < 0{
+					return
+				}
+				log.Infof("action: Recibir ganador | result: success | client_id: %v | winner: %v",
+					c.config.ID,
+					winner,
+				)
 		}
-		winner := int(binary.BigEndian.Uint32(winner_bytes))
-		log.Infof("action: Recibir ganador | result: success | client_id: %v | winner: %v",
-			c.config.ID,
-			winner,
-		)
 	}
 }
 
@@ -190,5 +204,22 @@ func recv_bet_batch_ack(conn net.Conn, cli_id string, channel chan<- bool){
 		channel <- false
 	}else{
 		channel <- true
+	}
+}
+
+//Attempts to receive a positive int from conn, if successfull sends it through the channel.
+//On failure sends -1
+func recv_positive_int(conn net.Conn, cli_id string, channel chan<- int){
+	const INT_AMOUNT_OF_BYTES = 4 
+	int_bytes, err := recv_exactly(conn, INT_AMOUNT_OF_BYTES)
+
+	if err != nil {
+		log.Errorf("action: recibiendo ganadores | result: fail | client_id: %v | error: %v",
+			cli_id,
+			err,
+		)
+		channel <- int(-1)
+	}else{
+		channel <- int(binary.BigEndian.Uint32(int_bytes))
 	}
 }
