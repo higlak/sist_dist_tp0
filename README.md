@@ -3,3 +3,6 @@ Se definio un script de bash "scripts/docker-compose-client-generator" que escri
 
 #### Ej2:
 Para evitar tener que hacer un nuevo build de las imagenes de docker cuando hay algun cambio en el config, ya sea del cliente o del server se agregaron dos volumenes de tipo bind, uno para el servidor, y uno para los clientes. Se hace el bind entre  una carpeta del docker y una carpeta de la maquina local, permitiendo que la modificacion de los archivos dentro de la carpeta desde la maquina local se vea reflejada automaticamente en el container. De esta manera al hacer un cambio en el config, al estar en un volumen, no se hara una nueva imagen, simplemente se utilizara la ultima y al iniciar se veran los cambios reflejados en el config.
+
+#### Ej3:
+Para correr el test se debe correr el script test-EchoServer.sh . Este script buildeara tanto el container del servidor e iniciara la red, pero sin levantar un cliente. Luego se hace un build de con el dockerfile de la carpeta script, esta imagen sera la del container cliente que se comunique con el servidor. Una vez levantado el cliente se lo inicia y se lo manda a ejecutar el script teste-EchoServer-Client.sh, que instala netcat en el container y manda un mensaje al echoserver. finalmente se bajan todos los containers.
