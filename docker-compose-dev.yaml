@@ -10,6 +10,8 @@ services:
       - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      - serverConfig:/config
 
   client1:
     container_name: client1
@@ -22,6 +24,8 @@ services:
       - testing_net
     depends_on:
       - server
+    volumes:
+      - clientConfig:/config
 
   client2:
     container_name: client2
@@ -34,6 +38,8 @@ services:
       - testing_net
     depends_on:
       - server
+    volumes:
+      - clientConfig:/config
 
 networks:
   testing_net:
@@ -41,3 +47,17 @@ networks:
       driver: default
       config:
         - subnet: 172.25.125.0/24
+
+volumes:
+  serverConfig:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./server/config
+      o: bind
+  clientConfig:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./client/config
+      o: bind
