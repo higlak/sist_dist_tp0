@@ -52,7 +52,7 @@ El tamaño máximo de un batch es configurable desde el configuración del clien
 Para obtener los ganadores primero el servidor debe enterarse que todos los clientes han finalizado de enviar sus bets. Esto ya se hizo en el punto anterior, cada cliente cuando finalice de mandar sus bets enviará un batch vacío para indicar que no tiene más bets a enviar.
 ##### Winners
 Para calcular los ganadores el servidor utiliza la función load bets para ir leyendo del archivo una bet a la vez y fijándose con isWinner si gano. Una vez obtenido los ganadores, envía a cada cliente sus ganadores. Esto lo hace enviando primero la cantidad de ganadores seguido de todos los dni. Los clientes lo reciben y loguean acordemente.  
-<img src="./fotos/bet_batch.png" alt="drawing" width="200"/>  
+<img src="./fotos/winners.png" alt="drawing" width="200"/>  
 Si bien el servidor solo manda los dni, si el cliente quisiera saber más información sobre el ganador la podría obtener desde su archivo de bets.
 
 
