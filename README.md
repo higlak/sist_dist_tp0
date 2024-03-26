@@ -14,3 +14,23 @@ En el servidor defini un handler para la señal SIG_TERM que cierra los sockets,
 ##### Cliente:
 El código del cliente consta de un loop donde manda mensajes y espera la respuesta del echoserver. Para hacer el gracefull finish, lo que hice fue crear un channel por el cual voy a recibir la SIG_TERM. Esto me permite que al finalizar cada iteración pueda intentar recibir del channel para ver si se debe finalizar. Si ya paso LoopPeriod segundos, se continúa con el envío y recepción del próximo mensaje. Ahora, esto trae un problema, que es el de operaciones bloqueantes en el loop (como un recv) que hacen que si nuestro programa estaba bloqueado cuando se envía la SIG_TERM no nos enteremos, y nuestro programa será frenado con un SIG_KILL. Para evitar esto, el recv ahora se hace desde una go routine que manda por un chanel lo que recibe. De esta manera se pueden hacer todas las operaciones no bloqueantes al inicio del loop, y luego en un select, quedarse esperando por el primero de 4 eventos. Ya sea terminar el loop porque ocurrio un timeout de LoopLapse, terminar el loop si se recibe un SIG_TERM, o recibir el mensaje y seguir con la siguiente iteración después de LoopPeriod segundos. Este select garantiza que la señal será escuchada independientemente de que operación bloqueante se esté realizando.
 
+#### Ej5:
+##### Protocolo
+Para resolver el ejercicio se plantea el siguiente protocolo de comunicacion. Luego de hacer una conexion tcp, el cliente, mandara una bet al servidor, y este le respondera con un ack. El mensaje bet que envia el cliente esta compuesto por un header que contiene los campos:  
+- agency(2 bytes): Es un u16 en big endian order que representa el numero de la agencia
+- date(4 bytes): El primer bytes indica el dia, el segundo el mes, y los ultimos dos se interpretan como un u16 en big endian order que representa 
+- dni(4 bytes): Es un u32 en big endian order que representa el numero de dni
+- lottery_number(4 bytes): Es un u32 en big endian order que representa el numero de loteria
+- name_len(1 bytes): Es un u32 en big endian order que representa la cantidad de bytes que usan los nombres
+Luego como paiload de mensaje se enviara el nombre y apellido. Se enviaran ambos dentro del mismo campo separados por un ';'. Los clientes entonces tendran como maximo 255 bytes, debido a que name_len tiene un bytes, de los cuales uno es usado para el separador. Entonces se define que el nombre y el apellido pueden tener como maximo 127 bytes cada uno, si un nombre o apellido tiene mas caracteres se tomo la desicion de truncarlo.
+
+![bet_fields.png](./fotos/bet_flieds.png)
+
+Este protocolo pone varias restricciones sobre la longitud o cantidad de cosas, por ejemplo la longitud de nombre o cantidad de agencias, pero estas asumo son lo suficientemente holgadas, y se podrian agrandar simplemente cambiando el tipo de dato.
+Entonces luego de que el cliente parsee y envie los datos, el servidor recibira primero un header de tama;o fijo 15, y luego lo usara para obtener cuantos bytes leer de los nombres. Una vez recibida y almacenada la bet el servidor responder con un ack. En cuanto al protocolo respecta este es un mensaje de un byte, sin importar su contenido. El servidor en la practica enviara siempre el byte 255. El cliente verificara la llegada de ese byte para verificar el almacenamiento de la bet.
+ 
+##### Short Read y short write
+Para evitar el short read y el short write, implemente las funciones send_all y recv_exactly. Send all envia todo un array de bytes, y recv_exactly recive exactamente una cantidad de bytes. Esto se logra enviando o recibiendo en principio todos lo bytes, si se enviaron o recibieron menos, entonces se repite la operacion con los bytes restantes hasta haber enviado o recibido todos los bytes.
+
+##### Aclaracion
+Decidi mantener la logica anterior donde los clientes enviaban multiples veces el mismo mensaje cada LoopPeriod dentro del loop, siempre que no exedan el LoopLapse. 
