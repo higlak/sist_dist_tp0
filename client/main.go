@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -31,14 +32,16 @@ func InitConfig() (*viper.Viper, error) {
 
 	// Add env variables supported
 	v.BindEnv("id")
+	v.BindEnv("max_batch_size")
 	v.BindEnv("server", "address")
 	v.BindEnv("loop", "period")
 	v.BindEnv("loop", "lapse")
 	v.BindEnv("log", "level")
-
+	v.BindEnv("log", "level")
+	
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
-	// can be loaded from the environment variables so we shouldn't
+	// can be loaded from the envi ronment variables so we shouldn't
 	// return an error in that case
 	v.SetConfigFile("./config/config.yaml")
 	if err := v.ReadInConfig(); err != nil {
@@ -51,6 +54,11 @@ func InitConfig() (*viper.Viper, error) {
 	}
 
 	if _, err := time.ParseDuration(v.GetString("loop.period")); err != nil {
+		return nil, errors.Wrapf(err, "Could not parse CLI_LOOP_PERIOD env var as time.Duration.")
+	}
+
+	// Parse int variables and return an error if those variables cannot be parsed
+	if _, err := strconv.ParseUint(v.GetString("max_batch_size"), 10, 8); err !=nil{
 		return nil, errors.Wrapf(err, "Could not parse CLI_LOOP_PERIOD env var as time.Duration.")
 	}
 
@@ -78,12 +86,13 @@ func InitLogger(logLevel string) error {
 // PrintConfig Print all the configuration parameters of the program.
 // For debugging purposes only
 func PrintConfig(v *viper.Viper) {
-	logrus.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_lapse: %v | loop_period: %v | log_level: %s",
+	logrus.Infof("action: config | result: success | client_id: %s | server_address: %s | loop_lapse: %v | loop_period: %v | log_level: %s | max_batch_size: %s",
 	    v.GetString("id"),
 	    v.GetString("server.address"),
 	    v.GetDuration("loop.lapse"),
 	    v.GetDuration("loop.period"),
 	    v.GetString("log.level"),
+		v.GetString("max_batch_size"),
     )
 }
 
@@ -105,6 +114,7 @@ func main() {
 		ID:            v.GetString("id"),
 		LoopLapse:     v.GetDuration("loop.lapse"),
 		LoopPeriod:    v.GetDuration("loop.period"),
+		MaxBatchSize:  byte(v.GetInt("max_batch_size")),
 	}
 
 	client := common.NewClient(clientConfig)

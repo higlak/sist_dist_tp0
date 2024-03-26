@@ -1,13 +1,12 @@
 import csv
 import datetime
-import time
-
 
 """ Bets storage location. """
 STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
 LOTTERY_WINNER_NUMBER = 7574
 
+AMOUNT_OF_WINNERS_BYTES = 4
 AGENCY_BYTES = 2
 DOCUMENT_BYTES = 4
 NUMBER_BYTES = 4
@@ -16,7 +15,8 @@ MONTH_BYTES = 1
 YEAR_BYTES = 2
 DATE_BYTES = DAY_BYTES + MONTH_BYTES + YEAR_BYTES
 NAME_LEN_BYTES = 1
-HEADER_LEN = AGENCY_BYTES + DOCUMENT_BYTES + DATE_BYTES + NUMBER_BYTES + NAME_LEN_BYTES
+BET_HEADER_LEN = AGENCY_BYTES + DOCUMENT_BYTES + DATE_BYTES + NUMBER_BYTES + NAME_LEN_BYTES
+BET_BATCH_HEADER_LEN = 1
 
 AGENCY_BYTE_POSITION = 0
 DAY_BYTE_POSITION = AGENCY_BYTE_POSITION + AGENCY_BYTES
@@ -25,8 +25,6 @@ YEAR_BYTE_POSITION = MONTH_BYTE_POSITION + MONTH_BYTES
 DOCUMENT_BYTE_POSITION = YEAR_BYTE_POSITION + YEAR_BYTES
 NUMBER_BYTE_POSITION = DOCUMENT_BYTE_POSITION + DOCUMENT_BYTES
 NAME_LEN_BYTE_POSITION = NUMBER_BYTE_POSITION + NUMBER_BYTES
-
-
 
 """ A lottery bet registry. """
 class Bet:
@@ -47,7 +45,7 @@ class Bet:
 
     @classmethod
     def from_bytes(cls, byte_array):
-        if (len(byte_array) < HEADER_LEN) or (len(byte_array) != HEADER_LEN + byte_array[NAME_LEN_BYTE_POSITION]):
+        if (len(byte_array) < BET_HEADER_LEN) or (len(byte_array) != BET_HEADER_LEN + byte_array[NAME_LEN_BYTE_POSITION]):
             print("Invalid bet bytes")
             return  None
         agency = byte_array_to_big_endian_integer(byte_array[AGENCY_BYTE_POSITION:DAY_BYTE_POSITION])
@@ -91,11 +89,20 @@ def load_bets() -> list[Bet]:
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
 
-def byte_array_to_big_endian_integer(bytes):
-    number = 0
-    for i in range(0, len(bytes)):
-        number = number | bytes[i] << 8*(len(bytes)-1-i)
-    return number
+# returns a dictionary where the key are the agency numbers and the 
+# values are the winners of the corresponding agency
+def get_winners() -> dict:
+    winner_dnis = {}
+    saved_bets = load_bets()
+    while True:
+        try:
+            bet = next(saved_bets)
+            if has_won(bet):
+                winner_dnis.setdefault(bet.agency, []).append(int(bet.document))
+        except StopIteration:
+            break
+            
+    return winner_dnis
 
 # Receives bytes until n bytes have been received. If cannot receive n bytes None is returned
 def recv_exactly(socket, n):
@@ -108,10 +115,23 @@ def recv_exactly(socket, n):
         n -= len(received)
     return buffer 
 
-# Sends bytes until all of them are sent, or a failure occurs in which case None 
-# is returned. 0 is return on succes
+# Sends bytes until all of them are sent, or a failure occurs
 def send_all(socket, byte_array):
     while len(byte_array) > 0:
         sent = socket.send(byte_array)
         byte_array = byte_array[sent:]
-    return 0
+    return
+
+def byte_array_to_big_endian_integer(bytes):
+    number = 0
+    for i in range(0, len(bytes)):
+        number = number | bytes[i] << 8*(len(bytes)-1-i)
+    return number
+
+def integer_to_big_endian_byte_array(number, amount_of_bytes):
+    byte_array = bytearray()
+    for i in range(amount_of_bytes):
+        byte = (number >> (8 * (amount_of_bytes-i-1))) & 0xff
+        byte_array.append(byte)
+    return byte_array
+

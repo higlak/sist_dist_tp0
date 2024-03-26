@@ -1,8 +1,9 @@
 # id: 1
+max_batch_size: 25
 server:
   address: "server:12345"
 loop:
   lapse: "0m20s"
-  period: "5s"
+  period: "0s"
 log:
   level: "info"

@@ -12,6 +12,7 @@ services:
       - testing_net
     volumes:
       - serverConfig:/config
+      - dataVolume:/data
 
   client1:
     container_name: client1
@@ -26,6 +27,7 @@ services:
       - server
     volumes:
       - clientConfig:/config
+      - dataVolume:/data
 
   client2:
     container_name: client2
@@ -40,6 +42,52 @@ services:
       - server
     volumes:
       - clientConfig:/config
+      - dataVolume:/data
+
+  client3:
+    container_name: client3
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=3
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      - clientConfig:/config
+      - dataVolume:/data
+
+  client4:
+    container_name: client4
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=4
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      - clientConfig:/config
+      - dataVolume:/data
+
+  client5:
+    container_name: client5
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=5
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      - clientConfig:/config
+      - dataVolume:/data
 
 networks:
   testing_net:
@@ -60,4 +108,10 @@ volumes:
     driver_opts:
       type: none
       device: ./client/config
+      o: bind
+  dataVolume:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./.data/dataset
       o: bind
