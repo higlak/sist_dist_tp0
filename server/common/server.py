@@ -16,13 +16,6 @@ class Server:
         signal.signal(signal.SIGTERM, self.handle_SIG_TERM)
 
     def run(self):
-        """
-        Dummy Server loop
-
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
-        """
         while len(self.client_sockets) < AGENCIES:
             try:
                 self.__accept_new_connection()
@@ -61,12 +54,6 @@ class Server:
         self.close_sockets()
 
     def __handle_client_connection(self, client_socket):
-        """
-        Read message from a specific client socket and closes the socket
-
-        If a problem arises in the communication with the client, the
-        client socket will also be closed
-        """
         try:
             ammount_of_bets = 0
             while True:
@@ -88,7 +75,7 @@ class Server:
         Accept new connections
 
         Function blocks until a connection to a client is made.
-        Then connection created is printed and returned
+        Then connection created is printed
         """
 
         # Connection arrived
@@ -96,7 +83,6 @@ class Server:
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         self.client_sockets.append(c)
-        #return c
 
     def recv_bet_header(self, client_socket):
         return recv_exactly(client_socket, BET_HEADER_LEN)

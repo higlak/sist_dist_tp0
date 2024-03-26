@@ -1,7 +1,6 @@
 package common
 
 import (
-	//"bufio"
 	"net"
 	"time"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
-	//"io"
 	
 	log "github.com/sirupsen/logrus"
 )
@@ -106,7 +104,11 @@ func (c *Client) send_all_bets(sigs chan os.Signal) bool{
 			if !received{
 				return false
 			}
-			<- loop_period_chan
+			select{
+				case <- sigs:
+					break
+				case <- loop_period_chan:
+			}
 		}
 	}
 	return true
