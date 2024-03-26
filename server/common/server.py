@@ -3,7 +3,7 @@ import socket
 import logging
 import signal
 import os
-from common.threard_coordination import *
+from common.process_coordination import *
 from common.utils import *
 
 STORED_BET_MSG = bytearray([0xff])
@@ -20,13 +20,6 @@ class Server:
         signal.signal(signal.SIGTERM, self.handle_SIG_TERM)
 
     def run(self):
-        """
-        Dummy Server loop
-
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
-        """
         winner_sender, winner_receivers = create_winner_comunicators(AGENCIES)
         safe_bet_writer = SafeBetWriter()
         while len(self.client_sockets) < AGENCIES:
