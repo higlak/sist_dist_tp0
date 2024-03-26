@@ -1,14 +1,11 @@
 package common
 
 import (
-	//"bufio"
 	"net"
 	"time"
 	"os"
     "os/signal"
     "syscall"
-	//"fmt"
-	//"io"
 	
 	log "github.com/sirupsen/logrus"
 )
@@ -85,7 +82,6 @@ func (c *Client) StartClientLoop() {
 		}
 
 		if batch.IsEmpty(){
-
 			log.Infof("action: enviado todas las apuestas | result: success |client_id: %v | error: %v",
 			c.config.ID,
 			err,
@@ -111,7 +107,11 @@ func (c *Client) StartClientLoop() {
 				log.Infof("pase por aca:")
 				break loop
 			}
-			<- loop_period_chan
+			select{
+				case <- sigs:
+					break loop
+				case <- loop_period_chan:
+			}
 		}
 	}
 	
