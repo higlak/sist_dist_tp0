@@ -1,6 +1,9 @@
 import socket
 import logging
 import signal
+from common.utils import NAME_LEN_BYTE_POSITION, HEADER_LEN, Bet, store_bets, recv_exactly, send_all
+
+STORED_BET_MSG = bytearray([0xff])
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -12,16 +15,6 @@ class Server:
         signal.signal(signal.SIGTERM, self.handle_SIG_TERM)
 
     def run(self):
-        """
-        Dummy Server loop
-
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
-        """
-
-        # TODO: Modify this program to handle signal to graceful shutdown
-        # the server
         while True:
             try:
                 self.__accept_new_connection()
@@ -38,23 +31,25 @@ class Server:
         self.close_sockets()
 
     def __handle_client_connection(self, client_sock):
-        """
-        Read message from a specific client socket and closes the socket
-
-        If a problem arises in the communication with the client, the
-        client socket will also be closed
-        """
         try:
             # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            msg_header = recv_exactly(self.client_socket, HEADER_LEN)
+            if msg_header == None:
+                return
+            names = recv_exactly(self.client_socket, msg_header[NAME_LEN_BYTE_POSITION])
+            if names == None:
+                return
+            bet = Bet.from_bytes(msg_header + names)
+            store_bets([bet])
+            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+
+            send_all(self.client_socket, STORED_BET_MSG)
+
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
-            client_sock.close()
+            self.client_socket.close()
+
 
     def __accept_new_connection(self):
         """

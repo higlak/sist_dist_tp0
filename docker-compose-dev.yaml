@@ -20,6 +20,11 @@ services:
     environment:
       - CLI_ID=1
       - CLI_LOG_LEVEL=DEBUG
+      - NOMBRE=Santiago Martin
+      - APELLIDO=Lorca
+      - DOCUMENTO=40000000
+      - NACIMIENTO=2000-01-10
+      - NUMERO=7500
     networks:
       - testing_net
     depends_on:
@@ -34,48 +39,11 @@ services:
     environment:
       - CLI_ID=2
       - CLI_LOG_LEVEL=DEBUG
-    networks:
-      - testing_net
-    depends_on:
-      - server
-    volumes:
-      - clientConfig:/config
-
-  client3:
-    container_name: client3
-    image: client:latest
-    entrypoint: /client
-    environment:
-      - CLI_ID=3
-      - CLI_LOG_LEVEL=DEBUG
-    networks:
-      - testing_net
-    depends_on:
-      - server
-    volumes:
-      - clientConfig:/config
-
-  client4:
-    container_name: client4
-    image: client:latest
-    entrypoint: /client
-    environment:
-      - CLI_ID=4
-      - CLI_LOG_LEVEL=DEBUG
-    networks:
-      - testing_net
-    depends_on:
-      - server
-    volumes:
-      - clientConfig:/config
-
-  client5:
-    container_name: client5
-    image: client:latest
-    entrypoint: /client
-    environment:
-      - CLI_ID=5
-      - CLI_LOG_LEVEL=DEBUG
+      - NOMBRE=Santiago Lionel
+      - APELLIDO=Lorca
+      - DOCUMENTO=30904465
+      - NACIMIENTO=1999-03-17
+      - NUMERO=7574
     networks:
       - testing_net
     depends_on:
